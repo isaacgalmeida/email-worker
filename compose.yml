@@ -1,1 +1,56 @@
+version: '3'
+services:
+  db:
+    image: postgres:9.6
+    environment:
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - dados:/var/lib/postgresql/data
+      - ./scripts:/scripts
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - banco
 
+  frontend:
+    image: nginx:1.13
+    volumes:
+      - ./web:/usr/share/nginx/html/
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - 80:80
+    networks:
+      - web
+    depends_on:
+      - app
+
+  app:
+    image: python:3.6
+    volumes:
+      - ./app:/app
+    working_dir: /app
+    command: bash ./app.sh
+    environment:
+      - DB_HOST=db
+      - DB_USER=postgres
+      - DB_PASS=password
+      - DB_NAME=email_sender
+      - REDIS_HOST=queue
+    networks:
+      - banco
+      - web
+    depends_on:
+      - db
+      - queue
+
+  queue:
+    image: redis:6.2
+    networks:
+      - banco
+      - web
+
+networks:
+  banco:
+  web:
+
+volumes:
+  dados:
